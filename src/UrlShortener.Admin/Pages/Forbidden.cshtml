@@ -1,0 +1,16 @@
+@page "/forbidden"
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Not an admin";
+}
+<div class="card" style="max-width: 520px; margin: 48px auto;">
+    <h1>You're not an admin</h1>
+    <p>
+        You're signed in as <strong>@(User.Identity?.Name ?? "someone")</strong>, but only holders of the
+        <strong>Admin</strong> app role can manage short links.
+    </p>
+    <p>
+        <a href="@SignOutLink.Url(HttpContext.Request, Configuration)">Sign out</a> and sign in as someone else, or ask
+        for the role.
+    </p>
+</div>
