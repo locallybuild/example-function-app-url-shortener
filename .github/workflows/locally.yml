@@ -1,0 +1,122 @@
+# Deploys this example to Locally the same way its README does, follows a short
+# link and checks the admin site is up, then tears it down again - so a change
+# that stops the example deploying or working fails its PR.
+name: Locally
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: locally-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Locally
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required: Locally signs in using GitHub's OIDC token
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      # Terraform runs the .NET SDK to publish both apps, so it has to match
+      # the projects' TargetFramework.
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build src/UrlShortener.slnx -c Release
+
+      # Locally hosts the function with the Azure Functions Core Tools. The
+      # npm package's `func` is a Node.js wrapper (lib/main.js) around the real
+      # binary in bin/, and Locally looks for the language workers next to
+      # whichever `func` is on PATH - so put bin/ (where workers/ lives) first.
+      - name: Install the Azure Functions Core Tools
+        run: |
+          npm install --global azure-functions-core-tools@4
+          bin="$(npm root --global)/azure-functions-core-tools/bin"
+          test -x "$bin/func" && test -d "$bin/workers"
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - uses: locallybuild/setup-locally@dc4fb46b46af5deded2a7e8ce1b6da7c337240f0 # v1.2.0
+        with:
+          team-uuid: ${{ vars.LOCALLY_TEAM_UUID }}
+          plugins: custom
+          plugins-list: |
+            Microsoft.DBforPostgreSQL
+            Microsoft.Insights
+            Microsoft.OperationalInsights
+            Microsoft.Storage
+            Microsoft.Web
+
+      # The publish profiles deploy to each app's SCM site over HTTPS, and the
+      # .NET SDK only trusts the system's CAs - so trust the one setup-locally
+      # generated.
+      - name: Trust Locally's CA
+        run: |
+          sudo cp "$LOCALLY_TLS_CA_FILE_PATH" /usr/local/share/ca-certificates/locally.crt
+          sudo update-ca-certificates
+
+      - name: Apply environments/locally
+        id: apply0
+        working-directory: environments/locally
+        run: |
+          terraform init -input=false
+          locally run terraform apply -auto-approve -input=false
+
+      - name: Show why the publish failed
+        if: failure() && steps.apply0.outcome == 'failure'
+        run: |
+          for log in .build/*-publish.log; do
+            [ -f "$log" ] || continue
+            echo "::group::$log"
+            tail -n 50 "$log"
+            echo "::endgroup::"
+          done
+
+      - name: Follow a short link
+        working-directory: environments/locally
+        run: |
+          set -euo pipefail
+          base="$(terraform output -raw short_link_base_url)"
+          admin="$(terraform output -raw admin_url)"
+          status() { curl --silent --output /dev/null --write-out '%{http_code}' --cacert "$LOCALLY_TLS_CA_FILE_PATH" "$1" || true; }
+
+          # The apps can take a little while to come up once published. An
+          # unknown code is a 404 once the function has asked PostgreSQL.
+          for _ in $(seq 60); do
+            code="$(status "$base/no-such-link")"
+            echo "GET $base/no-such-link: $code"
+            [ "$code" = 404 ] && break
+            sleep 5
+          done
+          [ "$code" = 404 ] || { echo "::error::the Function App didn't answer with a 404"; exit 1; }
+
+          for _ in $(seq 60); do
+            code="$(status "$admin/healthz")"
+            echo "GET $admin/healthz: $code"
+            [ "$code" = 200 ] && break
+            sleep 5
+          done
+          [ "$code" = 200 ] || { echo "::error::the admin site isn't healthy"; exit 1; }
+
+      - name: Destroy environments/locally
+        # Only once there's something to destroy.
+        if: always() && steps.apply0.outcome != 'skipped'
+        working-directory: environments/locally
+        run: locally run terraform destroy -auto-approve -input=false
+
+      - uses: locallybuild/setup-locally/teardown@dc4fb46b46af5deded2a7e8ce1b6da7c337240f0 # v1.2.0
+        if: always()

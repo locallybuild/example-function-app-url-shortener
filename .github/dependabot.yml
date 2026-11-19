@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # Terraform providers
+  - package-ecosystem: "terraform"
+    directories:
+      - "/environments/azure"
+      - "/environments/locally"
+      - "/modules/function-app-url-shortener"
+    schedule:
+      interval: "weekly"
+    groups:
+      terraform:
+        patterns:
+          - "*"
+
+  # .NET dependencies
+  - package-ecosystem: "nuget"
+    directories:
+      - "/src/UrlShortener.Admin"
+      - "/src/UrlShortener.Data"
+      - "/src/UrlShortener.Functions"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Microsoft.Azure.Functions.Worker.ApplicationInsights needs 2.x (see
+      # UrlShortener.Functions.csproj).
+      - dependency-name: "Microsoft.ApplicationInsights.WorkerService"
+        update-types: ["version-update:semver-major"]
+    groups:
+      nuget:
+        patterns:
+          - "*"
+
+  # GitHub Actions used by the CI
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
