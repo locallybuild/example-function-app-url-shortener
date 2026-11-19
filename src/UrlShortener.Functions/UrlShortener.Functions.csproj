@@ -12,6 +12,11 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.3.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="2.51.0" />
+    <!--
+      Held at 2.x: Microsoft.Azure.Functions.Worker.ApplicationInsights is built
+      against Application Insights 2.x, whose telemetry initializers and modules
+      3.x removed.
+    -->
     <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0" />
   </ItemGroup>
   <ItemGroup>

@@ -1,5 +1,5 @@
 using Azure.Core;
-using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using UrlShortener.Admin;
 using UrlShortener.Data;
@@ -15,9 +15,11 @@ builder.Services.AddApplicationInsightsTelemetry();
 
 // Local authentication is disabled on the Application Insights resource, so
 // each batch of telemetry carries an Entra access token for the app's managed
-// identity.
-builder.Services.AddOptions<TelemetryConfiguration>()
-    .Configure<TokenCredential>((config, credential) => config.SetAzureTokenCredential(credential));
+// identity. Application Insights 3.x takes the credential from its service
+// options; TelemetryConfiguration.SetAzureTokenCredential has no effect on the
+// configuration it registers itself.
+builder.Services.AddOptions<ApplicationInsightsServiceOptions>()
+    .Configure<TokenCredential>((options, credential) => options.Credential = credential);
 
 // App Service Authentication signs admins in (see 8-admin-app.tf), and the
 // handler reads who they are from the header App Service passes. Every page

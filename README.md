@@ -47,7 +47,7 @@ The code lives in [`src/`](./src):
 Both apps run as one **user-assigned managed identity**:
 
 * It is the PostgreSQL server's **Entra administrator**. The apps get an Entra access token for it and present the token as the database password (Npgsql's periodic password provider refreshes it before it expires), so there's no `PGPASSWORD`.
-* It holds **Monitoring Metrics Publisher** on Application Insights, which has local authentication turned off. The instrumentation key in the connection string is only an address and can't be used to send telemetry by itself. Each batch carries a token for the identity: the apps set it with `SetAzureTokenCredential`, and the Functions host's own telemetry uses `APPLICATIONINSIGHTS_AUTHENTICATION_STRING`.
+* It holds **Monitoring Metrics Publisher** on Application Insights, which has local authentication turned off. The instrumentation key in the connection string is only an address and can't be used to send telemetry by itself. Each batch carries a token for the identity: the admin site sets it as the `Credential` in its Application Insights options, the Function App's worker with `SetAzureTokenCredential`, and the Functions host's own telemetry uses `APPLICATIONINSIGHTS_AUTHENTICATION_STRING`.
 
 ### Signing in to the admin site
 
