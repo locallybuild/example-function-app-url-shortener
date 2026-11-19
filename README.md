@@ -10,9 +10,11 @@ o888ooooood8 `Y8bod8P' `Y8bod8P' `Y888""8o o888o o888o     .8'
                                                        `Y8P'
 ```
 
-# Example: A URL shortener on Function Apps, App Service and PostgreSQL within Locally
+# Example: Run a URL shortener on a Function App and App Service, backed by PostgreSQL, within Locally
 
-This example deploys a small URL shortener, written in C# on .NET 10, to [Locally Build](https://locally.build) or Azure. It has two parts:
+This example shows how to deploy a small URL shortener, written in C# on .NET 10, to a Function App and App Service backed by Azure Database for PostgreSQL Flexible Server, on [Locally Build](https://locally.build). The same module also deploys it to Azure (see [Running this on Azure](#running-this-on-azure)).
+
+It has two parts:
 
 * A **Function App** that serves the short links. `GET /<code>` looks the code up, counts the click and redirects to the target.
 * An **admin site** on App Service, where admins add and remove links and see how often each one has been followed. Admins sign in with **App Service Authentication** against Locally's Directory Emulator.
@@ -81,13 +83,13 @@ Locally names an app's SCM site `<app>-scm.furnace.locally:5663`, while Azure na
 
 ## Running the example
 
-First, make sure your container runtime (Docker or Podman) is running, then start Locally:
+First up, we need to ensure our container runtime (Docker or Podman) is running, then launch Locally:
 
 ```bash
 locally build
 ```
 
-With Locally running, open another terminal and initialise Terraform. This downloads the providers and sets up the module:
+With Locally running, in another terminal we can initialise Terraform, which both downloads the providers we need and configures the module for use:
 
 ```bash
 cd environments/locally
@@ -95,9 +97,9 @@ terraform init
 ```
 
 > [!NOTE]
-> You can use OpenTofu instead by running `tofu` wherever this says `terraform`.
+> It's possible to use OpenTofu here by substituting `terraform` for `tofu`.
 
-Once Terraform is initialised, provision the example:
+With Terraform initialised, we can then provision the example by running:
 
 ```bash
 locally run terraform apply
@@ -172,7 +174,7 @@ The same module deploys to Azure from [`environments/azure`](./environments/azur
 
 * Admins sign in with Microsoft Entra ID (`https://login.microsoftonline.com`), in your own tenant. Whoever runs Terraform gets the Admin role. To add more admins, set `admin_principal_ids` to the object IDs of users or groups in your tenant. Assigning an app role to a group needs Microsoft Entra ID P1.
 * Resource names get a random suffix (`links-<suffix>-…`), as App Service, PostgreSQL and Storage Account names have to be unique across all of Azure.
-* The region defaults to `westeurope`. Set `location` to change it.
+* The region defaults to `poland central`. Set `location` to change it.
 * The Log Analytics workspace has a daily ingestion cap of 0.5 GB (`log_analytics_daily_quota_gb`). See the costs below.
 
 You'll need permission to create app registrations in your tenant, and Azure Policy must allow basic authentication for publishing, since the code is deployed with the apps' publishing credentials. Many organisations restrict one or both of these.
@@ -186,7 +188,7 @@ terraform init
 terraform apply
 ```
 
-Run it without `locally run`. That's what points Terraform at Azure rather than Locally. (If you did use `locally run` here, Locally would refuse the `westeurope` region, so nothing would reach Azure by accident.)
+Run it without `locally run`. That's what points Terraform at Azure rather than Locally. (If you did use `locally run` here, Locally would refuse the `poland central` region, so nothing would reach Azure by accident.)
 
 State is kept in a local file. For a shared or long-lived deployment, uncomment the `backend "azurerm"` block in [`providers.tf`](./environments/azure/providers.tf) and point it at a storage account.
 
@@ -194,7 +196,7 @@ The connection to PostgreSQL is encrypted, but the server's certificate isn't ch
 
 ### What it costs
 
-Pay-as-you-go list prices in West Europe, in USD, from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) in October 2026:
+Pay-as-you-go list prices in West Europe, in USD, from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) in October 2026. The default region is Poland Central, where prices may differ:
 
 | Resource | Price | Per month |
 |---|---|---|
